@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
-const { protect } = require('../middleWare/authMiddleWare.js')
+// const { protect } = require('../middleWare/authMiddleWare.js')
+const { protect } = require('./../middleware/authMiddleWare.js')
 const { createPayment, getPaymentById, getPaymentsByUser, getPaymentStatus } = require('../controllers/paymentController.js');
 
 router.post('/process-payment', protect, createPayment);
