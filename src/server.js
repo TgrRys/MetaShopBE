@@ -6,7 +6,7 @@ const userRoutes = require('./routes/userRoutes.js')
 const orderRoutes = require('./routes/orderRoutes.js')
 const paymentRoutes = require('./routes/paymentRoutes.js')
 let path = require('path')
-const {errorHandler} = require('./middleWare/errorMiddleWare.js')
+const {errorHandler} = require('./middleware/errorMiddleWare.js')
 
 // CONFIG APP AND DB
 dotenv.config()
