@@ -1,7 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const { authUser, getUserProfile, registerUser, updateUserProfile, sendOtp, verifyOtp, resetPassword, forgotPassword, resetPasswordWithOtp, addToCart, removeFromCart, addToWishlist, removeFromWishlist } = require('../controllers/userController.js')
-const { protect } = require('../middleWare/authMiddleWare.js')
+const { protect } = require('./../middleware/authMiddleWare.js')
 const validation = require('../controllers/uploads/validation.js')
 
 router.post('/sendOtp', sendOtp)

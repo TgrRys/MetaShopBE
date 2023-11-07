@@ -1,7 +1,8 @@
 const express = require('express')
 const router = express.Router()
 const { createOrder, getOrderById, getOrdersByUser } = require('../controllers/orderController.js')
-const { protect } = require('../middleWare/authMiddleWare.js')
+// const { protect } = require('../middleware/authMiddleWare.js')
+const { protect } = require('./../middleware/authMiddleWare.js')
 // const duitkuConfig = require('../../config/duitku-config.js');
 
 // router.route('/').post(protect, addOrderItems)
