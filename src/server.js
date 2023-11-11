@@ -6,7 +6,6 @@ const userRoutes = require('./routes/userRoutes.js')
 const orderRoutes = require('./routes/orderRoutes.js')
 const paymentRoutes = require('./routes/paymentRoutes.js')
 const adminRoutes = require('./routes/adminRoutes.js')
-let path = require('path')
 const {errorHandler} = require('./middleware/errorMiddleWare.js')
 
 // CONFIG APP AND DB
@@ -22,17 +21,10 @@ app.use('/orders',orderRoutes)
 app.use('/payment',paymentRoutes)
 app.use('/admin', adminRoutes)
 
-if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, '/../frontend/build')))
-    app.get('*', (req, res) => {
-        res.sendFile(path.resolve(__dirname, '../','frontend', 'build', 'index.html'))
-    })
-} else {
-    app.get('/api', (req, res) => {
-        res.send("api")
-    })
-}
+app.get('/', (req, res) => {
+    res.send("Server is running")
+})
+
 app.use(errorHandler)
 
 app.listen(process.env.PORT || 5000, console.log(`SERVER IS RUNNING ON PORT ${process.env.PORT}`))
-
