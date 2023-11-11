@@ -5,6 +5,7 @@ const productRoutes = require('./routes/productRoutes.js')
 const userRoutes = require('./routes/userRoutes.js')
 const orderRoutes = require('./routes/orderRoutes.js')
 const paymentRoutes = require('./routes/paymentRoutes.js')
+const adminRoutes = require('./routes/adminRoutes.js')
 let path = require('path')
 const {errorHandler} = require('./middleware/errorMiddleWare.js')
 
@@ -15,10 +16,11 @@ const app = express()
 app.use(express.json())
 
 // ROUTES HERE
-app.use('/api/products', productRoutes)
-app.use('/api/users',userRoutes)
-app.use('/api/orders',orderRoutes)
-app.use('/api/payment',paymentRoutes)
+app.use('/products', productRoutes)
+app.use('/users',userRoutes)
+app.use('/orders',orderRoutes)
+app.use('/payment',paymentRoutes)
+app.use('/admin', adminRoutes)
 
 if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, '/../frontend/build')))

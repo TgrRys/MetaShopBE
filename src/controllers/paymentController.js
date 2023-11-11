@@ -68,7 +68,7 @@ const createPayment = async (req, res) => {
             }
 
             const token = transaction.token;
-            console.log(transaction);
+            // console.log(transaction);
             const payment = new Payment({
                 user,
                 order,

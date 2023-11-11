@@ -371,5 +371,17 @@ const removeFromWishlist = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Item removed from wishlist' });
 });
 
+const checkEmailUser = asyncHandler (async (req, res) => {
+    const { email } = req.body;
 
-module.exports = { sendOtp, verifyOtp, authUser, getUserProfile, registerUser, updateUserProfile, resetPassword, forgotPassword, resetPasswordWithOtp, addToCart, removeFromCart, addToWishlist, removeFromWishlist }
+    const user = await User.findOne({ email: email });
+
+    if (user) {
+        res.status(400).json({ message: 'Email already registered' });
+    } else {
+        res.status(200).json({ message: 'Email not registered' });
+    }
+})
+
+
+module.exports = { sendOtp, verifyOtp, authUser, getUserProfile, registerUser, updateUserProfile, resetPassword, forgotPassword, resetPasswordWithOtp, addToCart, removeFromCart, addToWishlist, removeFromWishlist, checkEmailUser }

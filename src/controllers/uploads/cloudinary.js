@@ -10,6 +10,6 @@ cloudinary.config({
     secure: true
 })
 
-console.log(process.env.CLOUD_API_KEY);
+// console.log(process.env.CLOUD_API_KEY);
 
 module.exports = cloudinary
