@@ -1,9 +1,9 @@
 const User = require('../models/userModel.js')
 const asyncHandler = require('express-async-handler')
 const generateToken = require('../utils/generateToken.js')
-const cloudinary = require("../controllers/uploads/cloudinary.js")
+const cloudinary = require("./uploads/cloudinary.js")
 // const otpGenerator = require('otp-generator')
-const Product = require('../models/productModel');
+const Product = require('../models/productModel.js');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer')
 
@@ -26,13 +26,13 @@ const sendOtp = asyncHandler(async (req, res) => {
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-            user: process.env.EMAIL, // your email
-            pass: process.env.EMAIL_PASSWORD // your email password
+            user: process.env.EMAIL,
+            pass: process.env.EMAIL_PASSWORD
         }
     });
 
     const mailOptions = {
-        from: process.env.EMAIL, // your email
+        from: process.env.EMAIL,
         to: user.email,
         subject: 'Your OTP',
         text: `Your OTP is ${otp}`
@@ -371,7 +371,7 @@ const removeFromWishlist = asyncHandler(async (req, res) => {
     res.status(200).json({ message: 'Item removed from wishlist' });
 });
 
-const checkEmailUser = asyncHandler (async (req, res) => {
+const checkEmailUser = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
     const user = await User.findOne({ email: email });

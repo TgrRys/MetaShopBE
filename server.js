@@ -1,6 +1,6 @@
 const express = require('express')
 const dotenv = require('dotenv')
-const connectDB = require('../src/config/dbconfig.js')
+const connectDB = require('./config/dbconfig.js')
 const productRoutes = require('./routes/productRoutes.js')
 const userRoutes = require('./routes/userRoutes.js')
 const orderRoutes = require('./routes/orderRoutes.js')

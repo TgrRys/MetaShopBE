@@ -17,19 +17,19 @@ const createOrder = async (req, res) => {
 // Get a single order by id
 const getOrderById = async (req, res) => {
     const order = await Order.findById(req.params.id).populate('user').populate('orderItems.product');
-  
+
     if (order) {
-      res.json(order);
+        res.json(order);
     } else {
-      res.status(404);
-      throw new Error('Order not found');
+        res.status(404);
+        throw new Error('Order not found');
     }
 };
-  
+
 // Get all orders for a user
 const getOrdersByUser = async (req, res) => {
     const orders = await Order.find({ user: req.params.userId }).populate('user').populate('orderItems.product');
-  
+
     res.json(orders);
 };
 

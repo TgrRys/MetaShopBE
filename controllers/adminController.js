@@ -160,4 +160,4 @@ const deleteCoupon = asyncHandler(async (req, res) => {
     }
 });
 
-module.exports = {getAllUsers, getUserById, deleteUser, getAllProducts, getProductById, addProduct, updateProduct, deleteProduct, getAllOrders, getOrderById, getAllPayments, getPaymentById, getAllCoupons, addCoupon, updateCoupon, deleteCoupon}
+module.exports = { getAllUsers, getUserById, deleteUser, getAllProducts, getProductById, addProduct, updateProduct, deleteProduct, getAllOrders, getOrderById, getAllPayments, getPaymentById, getAllCoupons, addCoupon, updateCoupon, deleteCoupon }
