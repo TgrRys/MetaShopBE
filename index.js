@@ -13,6 +13,7 @@ dotenv.config()
 connectDB()
 const app = express()
 app.use(express.json())
+const PORT = 5000 
 
 // ROUTES HERE
 app.use('/products', productRoutes)
@@ -27,4 +28,4 @@ app.get('/', (req, res) => {
 
 app.use(errorHandler)
 
-app.listen(process.env.PORT || 5000, console.log(`SERVER IS RUNNING ON PORT ${process.env.PORT}`))
+app.listen(PORT, console.log(`SERVER IS RUNNING ON PORT ${PORT}`))
