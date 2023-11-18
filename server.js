@@ -22,7 +22,7 @@ app.use('/payment',paymentRoutes)
 app.use('/admin', adminRoutes)
 
 app.get('/', (req, res) => {
-    res.send("Server is running")
+    return res.send('API IS RUNNING')
 })
 
 app.use(errorHandler)
