@@ -1,19 +1,39 @@
 const Product = require('../models/productModel.js');
 const User = require('../models/userModel.js')
-const asyncHandler = require('express-async-handler')
+const Order = require('../models/orderModel.js');
+const Payment = require('../models/paymentModel.js');
+const Coupon = require('../models/couponModel.js');
+const asyncHandler = require('express-async-handler');
 
 const getAllUsers = asyncHandler(async (req, res) => {
     const users = await User.find({});
-    res.json(users);
+    res.status(200).json({
+        code: "200",
+        status: "OK",
+        success: true,
+        message: "Users retrieved successfully",
+        data: users
+    });
 });
 
 const getUserById = asyncHandler(async (req, res) => {
     const user = await User.findById(req.params.id);
     if (user) {
-        res.json(user);
+        res.status(200).json({
+            code: "200",
+            status: "OK",
+            success: true,
+            message: "User retrieved successfully",
+            data: user
+        });
     } else {
-        res.status(404);
-        throw new Error('User not found');
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: "User not found",
+            data: {}
+        });
     }
 });
 
@@ -22,14 +42,23 @@ const deleteUser = asyncHandler(async (req, res) => {
 
     if (user) {
         await user.remove();
-        res.json({ message: 'User removed' });
+        res.status(200).json({
+            code: "200",
+            status: "OK",
+            success: true,
+            message: "User deleted successfully",
+            data: {}
+        });
     } else {
-        res.status(404);
-        throw new Error('User not found');
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: "User not found",
+            data: {}
+        });
     }
 });
-
-// Product
 
 const getAllProducts = asyncHandler(async (req, res) => {
     const products = await Product.find({});
@@ -86,7 +115,6 @@ const deleteProduct = asyncHandler(async (req, res) => {
     }
 });
 
-// Order
 const getAllOrders = asyncHandler(async (req, res) => {
     const orders = await Order.find({}).populate('user', 'id name');
     res.json(orders);
@@ -155,8 +183,13 @@ const deleteCoupon = asyncHandler(async (req, res) => {
         await coupon.remove();
         res.json({ message: 'Coupon removed' });
     } else {
-        res.status(404);
-        throw new Error('Coupon not found');
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: "Coupon not found",
+            data: {}
+        });
     }
 });
 

@@ -2,7 +2,6 @@ const User = require('../models/userModel.js')
 const asyncHandler = require('express-async-handler')
 const generateToken = require('../utils/generateToken.js')
 const cloudinary = require("./uploads/cloudinary.js")
-// const otpGenerator = require('otp-generator')
 const Product = require('../models/productModel.js');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer')
@@ -12,8 +11,13 @@ const sendOtp = asyncHandler(async (req, res) => {
     const userExists = await User.findOne({ email: email })
 
     if (userExists) {
-        res.status(400)
-        throw new Error('User already exists')
+        return res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'User already exists',
+            data: {}
+        })
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString().substring(0, 6);
@@ -34,13 +38,31 @@ const sendOtp = asyncHandler(async (req, res) => {
     const mailOptions = {
         from: process.env.EMAIL,
         to: user.email,
-        subject: 'Your OTP',
-        text: `Your OTP is ${otp}`
+        subject: 'OTP for verification email request from MetaShop',
+        html: `
+            <div style="text-align: center;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/LEGO_logo.svg/768px-LEGO_logo.svg.png" alt="MetaShop Logo" style="width: 200px;"/>
+            </div>
+            <br>
+            Hi ${user.email},<br><br>
+            Your OTP is <b>${otp}</b><br><br>
+            The OTP is valid for 5 minutes. <br><br>
+            If you did not request this, please ignore this email. <br><br>
+            Thanks,<br><br>
+            MetaShop Team
+        `
     };
 
     transporter.sendMail(mailOptions, function (error, info) {
         if (error) {
             console.log(error);
+            res.status(500).json({
+                code: "500",
+                status: "Internal Server Error",
+                success: false,
+                message: 'Failed to send email OTP',
+                data: {}
+            })
         } else {
             console.log('Email sent: ' + info.response);
         }
@@ -48,18 +70,29 @@ const sendOtp = asyncHandler(async (req, res) => {
 
     if (user) {
         res.status(201).json({
-            message: 'OTP sent to email'
+            code: "201",
+            status: "Created",
+            success: true,
+            message: 'OTP sent successfully to your email, please check your email inbox or spam folder',
+            data: {
+                email: user.email,
+                otp: otp
+            }
         })
     } else {
-        res.status(400)
-        throw new Error('Invalid user data')
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'Invalid user data',
+            data: {}
+        })
     }
 })
 
 const verifyOtp = asyncHandler(async (req, res) => {
     const { otp } = req.body;
 
-    // Find user by OTP
     const user = await User.findOne({ otp });
     if (!user) {
         res.status(404);
@@ -69,7 +102,6 @@ const verifyOtp = asyncHandler(async (req, res) => {
     console.log('OTP from database:', user.otp);
     console.log('OTP from request:', otp);
 
-    // If otpCreatedAt is not set, throw an error
     if (!user.otpCreatedAt) {
         res.status(500);
         throw new Error('OTP creation time not found');
@@ -78,7 +110,6 @@ const verifyOtp = asyncHandler(async (req, res) => {
     console.log('OTP creation time:', user.otpCreatedAt);
     console.log('Time difference:', Date.now() - new Date(user.otpCreatedAt).getTime());
 
-    // Verify OTP and check if it has expired
     const otpIsValid = user.otp === otp;
     const otpHasExpired = Date.now() - new Date(user.otpCreatedAt).getTime() > 5 * 60 * 1000; // 5 minutes
 
@@ -86,47 +117,156 @@ const verifyOtp = asyncHandler(async (req, res) => {
     console.log('OTP has expired:', otpHasExpired);
 
     if (otpIsValid && !otpHasExpired) {
-        // Set isVerified to true
         user.isVerified = true;
         await user.save();
 
-        // Generate JWT with user ID and OTP
-        const token = jwt.sign({ id: user._id, otp }, process.env.JWT_SECRET, { expiresIn: '10m' });
+        const token = jwt.sign({ id: user._id, otp }, process.env.JWT_SECRET);
 
-        res.status(200).json({ message: 'OTP verified', token, otpCreatedAt: user.otpCreatedAt });
+        res.status(200).json({
+            code: "200",
+            status: "OK",
+            success: true,
+            message: 'OTP verified',
+            data: {
+                token: token,
+                otpCreatedAt: user.otpCreatedAt
+            }
+        });
     } else {
-        res.status(400);
-        throw new Error('Invalid or expired OTP');
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'Invalid or expired OTP',
+            data: {}
+        });
     }
 });
 
+// const authUser = asyncHandler(async (req, res) => {
+//     const { email, password } = req.body
+//     const user = await User.findOne({ email: email })
+
+//     if (!user) {
+//         res.status(401).json({
+//             code: "401",
+//             status: "Unauthorized",
+//             success: false,
+//             message: 'User not found',
+//             data: {}
+//         })
+//     }
+
+//     if (!user.isVerified) {
+//         res.status(401).json({
+//             code: "401",
+//             status: "Unauthorized",
+//             success: false,
+//             message: 'Please verify your OTP first',
+//             data: {}
+//         })
+//     }
+
+//     if (await user.matchPassword(password)) {
+//         res.json({
+//             _id: user._id,
+//             name: user.name,
+//             email: user.email,
+//             image: user.image,
+//             isAdmin: user.isAdmin,
+//             addresses: user.addresses,
+//             token: generateToken(user._id)
+//         })
+//     } else {
+//         res.status(401).json({
+//             code: "401",
+//             status: "Unauthorized",
+//             success: false,
+//             message: 'Invalid email or password',
+//             data: {}
+//         })
+//     }
+// })
+
 const authUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body
-    const user = await User.findOne({ email: email })
+    const token = req.headers.authorization.split(' ')[1];
+
+    if (!token) {
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'No authorization token provided',
+            data: {}
+        })
+        return;
+    }
+
+    let decodedToken;
+    try {
+        decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'Invalid authorization token',
+            data: {}
+        })
+        return;
+    }
+
+    const user = await User.findOne({ _id: decodedToken.id, email: email })
 
     if (!user) {
-        res.status(401)
-        throw new Error('Invalid email or password')
+        res.status(401).json({
+            code: "401",
+            status: "Unauthorized",
+            success: false,
+            message: 'User not found',
+            data: {}
+        })
+        return;
     }
 
     if (!user.isVerified) {
-        res.status(401)
-        throw new Error('Please verify your OTP first')
+        res.status(401).json({
+            code: "401",
+            status: "Unauthorized",
+            success: false,
+            message: 'Please verify your OTP first',
+            data: {}
+        })
+        return;
     }
 
     if (await user.matchPassword(password)) {
         res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            isAdmin: user.isAdmin,
-            addresses: user.addresses,
-            token: generateToken(user._id)
+            code: "200",
+            status: "OK",
+            success: true,
+            message: 'Login successfully',
+            data: {
+                user: {
+                    _id: user._id,
+                    name: user.name,
+                    email: user.email,
+                    image: user.image,
+                    isAdmin: user.isAdmin,
+                    addresses: user.addresses,
+                    token: token
+                }
+            }
         })
     } else {
-        res.status(401)
-        throw new Error('Invalid email or password')
+        res.status(401).json({
+            code: "401",
+            status: "Unauthorized",
+            success: false,
+            message: 'Invalid email or password',
+            data: {}
+        })
     }
 })
 
@@ -151,8 +291,13 @@ const updateUserProfile = async (req, res) => {
     try {
         let user = await User.findById(req.user._id);
         if (!user) {
-            res.status(404);
-            throw new Error('User not found');
+            res.status(404).json({
+                code: "404",
+                status: "Not Found",
+                success: false,
+                message: 'User not found',
+                data: {}
+            });
         }
 
         if (req.file == null) {
@@ -163,7 +308,13 @@ const updateUserProfile = async (req, res) => {
                 user.password = req.body.password;
             }
             const updatedUser = await user.save();
-            res.status(200).json({ message: "Update successfully" });
+            res.status(200).json({
+                code: "200",
+                status: "OK",
+                success: true,
+                message: 'Update successfully',
+                data: {}
+            });
         } else {
             if (user.image) {
                 const userImage = user.image;
@@ -178,8 +329,13 @@ const updateUserProfile = async (req, res) => {
             cloudinary.uploader.upload(file, { folder: "user" }, async function (err, result) {
                 if (!!err) {
                     res.status(400).json({
-                        status: "UPLOAD FAIL",
-                        errors: err.message,
+                        code: "400",
+                        status: "Bad Request",
+                        success: false,
+                        message: 'Upload failed',
+                        data: {
+                            error: err
+                        }
                     });
                     return;
                 }
@@ -192,27 +348,127 @@ const updateUserProfile = async (req, res) => {
                     user.password = req.body.password;
                 }
                 const updatedUser = await user.save();
-                res.status(200).json({ message: "Update successfully" });
+                res.status(200).json({
+                    code: "200",
+                    status: "OK",
+                    success: true,
+                    message: 'Update successfully',
+                    data: {
+                        user: updatedUser
+                    }
+                });
             });
         }
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({
+            code: "500",
+            status: "Internal Server Error",
+            success: false,
+            message: 'Internal Server Error',
+            data: {}
+        });
     }
 };
 
+// const registerUser = asyncHandler(async (req, res) => {
+//     const { name, email, password } = req.body
+//     const user = await User.findOne({ email: email })
+
+//     if (!user) {
+//         res.status(400).json({
+//             code: "400",
+//             status: "Bad Request",
+//             success: false,
+//             message: 'User not found',
+//             data: {}
+//         })
+//     }
+
+//     if (!user.isVerified) {
+//         res.status(400).json({
+//             code: "400",
+//             status: "Bad Request",
+//             success: false,
+//             message: 'Please verify your OTP first',
+//             data: {}
+//         })
+//     }
+
+//     user.name = name
+//     user.password = password
+
+//     await user.save()
+
+//     res.status(201).json({
+//         code: "201",
+//         status: "Created",
+//         success: true,
+//         message: 'User created successfully',
+//         data: {
+//             user: {
+//                 _id: user._id,
+//                 name: user.name,
+//                 email: user.email,
+//                 image: user.image,
+//                 isAdmin: user.isAdmin,
+//                 addresses: user.addresses,
+//                 token: generateToken(user._id)
+//             }
+//         }
+//     })
+// })
+
 const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body
-    const user = await User.findOne({ email: email })
+    const token = req.headers.authorization.split(' ')[1]; 
+    if (!token) {
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'No authorization token provided',
+            data: {}
+        })
+        return;
+    }
+
+    let decodedToken;
+    try {
+        decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'Invalid authorization token',
+            data: {}
+        })
+        return;
+    }
+
+    const user = await User.findOne({ _id: decodedToken.id, email: email })
 
     if (!user) {
-        res.status(400)
-        throw new Error('User not found')
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'User not found',
+            data: {}
+        })
+        return;
     }
 
     if (!user.isVerified) {
-        res.status(400)
-        throw new Error('Please verify your OTP first')
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'Please verify your OTP first',
+            data: {}
+        })
+        return;
     }
 
     user.name = name
@@ -221,49 +477,77 @@ const registerUser = asyncHandler(async (req, res) => {
     await user.save()
 
     res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isAdmin: user.isAdmin,
-        token: generateToken(user._id)
+        code: "201",
+        status: "Created",
+        success: true,
+        message: 'User created successfully',
+        data: {
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+                isAdmin: user.isAdmin,
+                addresses: user.addresses,
+                token: generateToken(user._id)
+            }
+        }
     })
 })
 
 const resetPassword = asyncHandler(async (req, res) => {
     const { newPassword } = req.body;
-    const token = req.headers.authorization.split(' ')[1]; // Assumes 'Bearer <token>'
-
-    // Verify JWT
+    const token = req.headers.authorization.split(' ')[1]; 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Find user by ID
     const user = await User.findById(decoded.id);
     if (!user) {
-        res.status(404);
-        throw new Error('User not found');
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: 'User not found',
+            data: {}
+        });
     }
 
-    // Reset password
     user.password = newPassword;
     await user.save();
 
-    res.status(200).json({ message: 'Password reset successful' });
+    res.status(200).json({
+        code: "200",
+        status: "OK",
+        success: true,
+        message: 'Password reset successful',
+        data: {
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+                isAdmin: user.isAdmin,
+                addresses: user.addresses,
+            }
+        }
+    });
 });
 
 const forgotPassword = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
-    // Find user by email
     const user = await User.findOne({ email });
     if (!user) {
-        res.status(404);
-        throw new Error('User not found');
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: 'User not found',
+            data: {}
+        });
     }
 
-    // Generate OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(100000 + Math.random() * 900000).toString().substring(0, 6);
 
-    // Save OTP and otpCreatedAt to user
     user.otp = otp;
     user.otpCreatedAt = Date.now();
     await user.save();
@@ -271,53 +555,95 @@ const forgotPassword = asyncHandler(async (req, res) => {
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-            user: process.env.EMAIL, // your email
-            pass: process.env.EMAIL_PASSWORD // your email password
+            user: process.env.EMAIL, 
+            pass: process.env.EMAIL_PASSWORD 
         }
     });
 
     const mailOptions = {
         from: process.env.EMAIL,
         to: email,
-        subject: 'Your OTP for forgot password',
-        text: `Your OTP is ${otp}`
+        subject: 'OTP for forgot password request',
+        html: `
+        <div style="text-align: center;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/LEGO_logo.svg/768px-LEGO_logo.svg.png" alt="MetaShop Logo" style="width: 200px;"/>
+        </div>
+        <br>
+        Hi ${user.name},<br><br>
+        Your OTP is <b>${otp}</b><br><br>
+        The OTP is valid for 5 minutes. <br><br>
+        If you did not request this, please ignore this email. <br><br>
+        Thanks,<br><br>
+        MetaShop Team
+    `
     };
 
     transporter.sendMail(mailOptions, function (error, info) {
         if (error) {
             console.log(error);
         } else {
-            console.log('Email sent: ' + info.response);
+            console.log('Email sent: ', info.response);
         }
     });
 
-    res.status(200).json({ message: 'OTP sent to email, please check your email' });
+    res.status(200).json({
+        code: "200",
+        status: "Success",
+        success: true,
+        message: 'Please check your email for the OTP to change your password',
+        data: {
+            email: user.email,
+            otp: otp
+        }
+    });
 });
 
 const resetPasswordWithOtp = asyncHandler(async (req, res) => {
     const { otp, newPassword } = req.body;
 
-    // Find user by OTP
     const user = await User.findOne({ otp });
     if (!user) {
-        res.status(404);
-        throw new Error('User not found');
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: 'Invalid or OTP has expired (OTP not found)',
+            data: {}
+        });
     }
 
-    // Check if OTP has expired
-    const otpHasExpired = Date.now() - new Date(user.otpCreatedAt).getTime() > 5 * 60 * 1000; // 5 minutes
+    const otpHasExpired = Date.now() - new Date(user.otpCreatedAt).getTime() > 5 * 60 * 1000;
     if (otpHasExpired) {
-        res.status(400);
-        throw new Error('OTP has expired');
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'OTP has expired',
+            data: {}
+        });
     }
 
-    // Reset password
     user.password = newPassword;
     user.otp = undefined;
     user.otpCreatedAt = undefined;
     await user.save();
 
-    res.status(200).json({ message: 'Password reset successful' });
+    res.status(200).json({
+        code: "200",
+        status: "Success",
+        success: true,
+        message: 'Password reset successful',
+        data: {
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+                isAdmin: user.isAdmin,
+                addresses: user.addresses
+            }
+        }
+    });
 });
 
 const addToCart = asyncHandler(async (req, res) => {
@@ -334,7 +660,15 @@ const addToCart = asyncHandler(async (req, res) => {
     user.cart.push(item);
     await user.save();
 
-    res.status(200).json({ message: 'Item added to cart' });
+    res.status(200).json({
+        code: "200",
+        status: "Success",
+        success: true,
+        message: 'Item successfully added to cart',
+        data: {
+            cart: user.cart
+        }
+    });
 });
 
 const removeFromCart = asyncHandler(async (req, res) => {
@@ -344,7 +678,15 @@ const removeFromCart = asyncHandler(async (req, res) => {
     user.cart = user.cart.filter(item => item.product.toString() !== productId);
     await user.save();
 
-    res.status(200).json({ message: 'Item removed from cart' });
+    res.status(200).json({
+        code: "200",
+        status: "Success",
+        success: true,
+        message: 'Item successfully removed from cart',
+        data: {
+            cart: user.cart
+        }
+    });
 });
 
 const addToWishlist = asyncHandler(async (req, res) => {
@@ -358,7 +700,15 @@ const addToWishlist = asyncHandler(async (req, res) => {
     user.wishlist.push(item);
     await user.save();
 
-    res.status(200).json({ message: 'Item added to wishlist' });
+    res.status(200).json({
+        code: "200",
+        status: "Success",
+        success: true,
+        message: 'Item successfully added to wishlist',
+        data: {
+            wishlist: user.wishlist
+        }
+    });
 });
 
 const removeFromWishlist = asyncHandler(async (req, res) => {
@@ -368,7 +718,15 @@ const removeFromWishlist = asyncHandler(async (req, res) => {
     user.wishlist = user.wishlist.filter(item => item.product.toString() !== productId);
     await user.save();
 
-    res.status(200).json({ message: 'Item removed from wishlist' });
+    res.status(200).json({
+        code: "200",
+        status: "Success",
+        success: true,
+        message: 'Item successfully removed from wishlist',
+        data: {
+            wishlist: user.wishlist
+        }
+    });
 });
 
 const checkEmailUser = asyncHandler(async (req, res) => {
@@ -377,11 +735,23 @@ const checkEmailUser = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email: email });
 
     if (user) {
-        res.status(400).json({ message: 'Email already registered' });
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'This email is already registered, please use other email address',
+            data: {}
+        });
     } else {
-        res.status(200).json({ message: 'Email not registered' });
+        res.status(200).json({
+            code: "200",
+            status: "OK",
+            success: true,
+            message: 'This email is available to use for registration',
+            data: {}
+        });
     }
-})
+});
 
 
 module.exports = { sendOtp, verifyOtp, authUser, getUserProfile, registerUser, updateUserProfile, resetPassword, forgotPassword, resetPasswordWithOtp, addToCart, removeFromCart, addToWishlist, removeFromWishlist, checkEmailUser }

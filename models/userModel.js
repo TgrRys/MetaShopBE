@@ -34,7 +34,7 @@ const cartItemSchema = mongoose.Schema({
 const userSchema = mongoose.Schema({
     name: {
         type: String,
-        required: false // name is not required at first
+        required: false
     },
     email: {
         type: String,
@@ -43,7 +43,7 @@ const userSchema = mongoose.Schema({
     },
     password: {
         type: String,
-        required: false // password is not required at first
+        required: false 
     },
     image: {
         type: String,
@@ -64,7 +64,7 @@ const userSchema = mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    isVerified: { // new field for verification status
+    isVerified: { 
         type: Boolean,
         required: true,
         default: false

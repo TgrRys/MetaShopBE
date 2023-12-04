@@ -17,8 +17,8 @@ const PORT = 5000
 
 // ROUTES HERE
 app.use('/products', productRoutes)
-app.use('/users',userRoutes)
-app.use('/orders',orderRoutes)
+app.use('/user',userRoutes)
+app.use('/order',orderRoutes)
 app.use('/payment',paymentRoutes)
 app.use('/admin', adminRoutes)
 
