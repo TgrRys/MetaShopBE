@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
+const { variantSchema } = require('./productModel.js');
 
 const addressSchema = mongoose.Schema({
     street: { type: String, required: true },
@@ -24,8 +25,9 @@ const cartItemSchema = mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product'
     },
+    variant: variantSchema,
     quantity: Number,
-    price: Number
+    price: String // Ubah ini menjadi String
 }, {
     _id: false
 });
@@ -43,7 +45,7 @@ const userSchema = mongoose.Schema({
     },
     password: {
         type: String,
-        required: false 
+        required: false
     },
     image: {
         type: String,
@@ -64,7 +66,7 @@ const userSchema = mongoose.Schema({
         type: Date,
         default: Date.now
     },
-    isVerified: { 
+    isVerified: {
         type: Boolean,
         required: true,
         default: false

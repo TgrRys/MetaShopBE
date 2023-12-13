@@ -1,8 +1,8 @@
 const User = require('../models/userModel.js')
+const { Product } = require('../models/productModel');
 const asyncHandler = require('express-async-handler')
 const generateToken = require('../utils/generateToken.js')
 const cloudinary = require("./uploads/cloudinary.js")
-const Product = require('../models/productModel.js');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer')
 
@@ -188,36 +188,92 @@ const verifyOtp = asyncHandler(async (req, res) => {
 //     }
 // })
 
+// const authUser = asyncHandler(async (req, res) => {
+//     const { email, password } = req.body
+//     const token = req.headers.authorization.split(' ')[1];
+
+//     if (!token) {
+//         res.status(400).json({
+//             code: "400",
+//             status: "Bad Request",
+//             success: false,
+//             message: 'No authorization token provided',
+//             data: {}
+//         })
+//         return;
+//     }
+
+//     let decodedToken;
+//     try {
+//         decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+//     } catch (err) {
+//         res.status(400).json({
+//             code: "400",
+//             status: "Bad Request",
+//             success: false,
+//             message: 'Invalid authorization token',
+//             data: {}
+//         })
+//         return;
+//     }
+
+//     const user = await User.findOne({ _id: decodedToken.id, email: email })
+
+//     if (!user) {
+//         res.status(401).json({
+//             code: "401",
+//             status: "Unauthorized",
+//             success: false,
+//             message: 'User not found',
+//             data: {}
+//         })
+//         return;
+//     }
+
+//     if (!user.isVerified) {
+//         res.status(401).json({
+//             code: "401",
+//             status: "Unauthorized",
+//             success: false,
+//             message: 'Please verify your OTP first',
+//             data: {}
+//         })
+//         return;
+//     }
+
+//     if (await user.matchPassword(password)) {
+//         res.json({
+//             code: "200",
+//             status: "OK",
+//             success: true,
+//             message: 'Login successfully',
+//             data: {
+//                 user: {
+//                     _id: user._id,
+//                     name: user.name,
+//                     email: user.email,
+//                     image: user.image,
+//                     isAdmin: user.isAdmin,
+//                     addresses: user.addresses,
+//                     token: token
+//                 }
+//             }
+//         })
+//     } else {
+//         res.status(401).json({
+//             code: "401",
+//             status: "Unauthorized",
+//             success: false,
+//             message: 'Invalid email or password',
+//             data: {}
+//         })
+//     }
+// })
+
 const authUser = asyncHandler(async (req, res) => {
     const { email, password } = req.body
-    const token = req.headers.authorization.split(' ')[1];
 
-    if (!token) {
-        res.status(400).json({
-            code: "400",
-            status: "Bad Request",
-            success: false,
-            message: 'No authorization token provided',
-            data: {}
-        })
-        return;
-    }
-
-    let decodedToken;
-    try {
-        decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-        res.status(400).json({
-            code: "400",
-            status: "Bad Request",
-            success: false,
-            message: 'Invalid authorization token',
-            data: {}
-        })
-        return;
-    }
-
-    const user = await User.findOne({ _id: decodedToken.id, email: email })
+    const user = await User.findOne({ email })
 
     if (!user) {
         res.status(401).json({
@@ -242,6 +298,8 @@ const authUser = asyncHandler(async (req, res) => {
     }
 
     if (await user.matchPassword(password)) {
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
+
         res.json({
             code: "200",
             status: "OK",
@@ -271,21 +329,36 @@ const authUser = asyncHandler(async (req, res) => {
 })
 
 const getUserProfile = asyncHandler(async (req, res) => {
-    const user = await User.findById(req.user._id)
+    const user = await User.findById(req.user._id).select('-password');
+
     if (user) {
-        res.json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            image: user.image,
-            isAdmin: user.isAdmin,
-            addresses: user.addresses,
-        })
+        res.status(200).json({
+            code: "200",
+            status: "OK",
+            success: true,
+            message: 'User profile retrieved successfully',
+            data: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                image: user.image,
+                addresses: user.addresses,
+                isAdmin: user.isAdmin,
+                isVerified: user.isVerified,
+                cart: user.cart,
+                wishlist: user.wishlist,
+            }
+        });
     } else {
-        res.status(404)
-        throw new Error('USER NOT FOUND')
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: 'User not found',
+            data: {}
+        });
     }
-})
+});
 
 const updateUserProfile = async (req, res) => {
     try {
@@ -371,57 +444,30 @@ const updateUserProfile = async (req, res) => {
     }
 };
 
-// const registerUser = asyncHandler(async (req, res) => {
-//     const { name, email, password } = req.body
-//     const user = await User.findOne({ email: email })
+// const getProfile = async (req, res) => {
+//     const user = await User.findById(req.user._id).select('-password');
 
-//     if (!user) {
-//         res.status(400).json({
-//             code: "400",
-//             status: "Bad Request",
-//             success: false,
-//             message: 'User not found',
-//             data: {}
-//         })
+//     if (user) {
+//         res.json({
+//             _id: user._id,
+//             name: user.name,
+//             email: user.email,
+//             image: user.image,
+//             addresses: user.addresses,
+//             isAdmin: user.isAdmin,
+//             isVerified: user.isVerified,
+//             cart: user.cart,
+//             wishlist: user.wishlist,
+//         });
+//     } else {
+//         res.status(404);
+//         throw new Error('User not found');
 //     }
-
-//     if (!user.isVerified) {
-//         res.status(400).json({
-//             code: "400",
-//             status: "Bad Request",
-//             success: false,
-//             message: 'Please verify your OTP first',
-//             data: {}
-//         })
-//     }
-
-//     user.name = name
-//     user.password = password
-
-//     await user.save()
-
-//     res.status(201).json({
-//         code: "201",
-//         status: "Created",
-//         success: true,
-//         message: 'User created successfully',
-//         data: {
-//             user: {
-//                 _id: user._id,
-//                 name: user.name,
-//                 email: user.email,
-//                 image: user.image,
-//                 isAdmin: user.isAdmin,
-//                 addresses: user.addresses,
-//                 token: generateToken(user._id)
-//             }
-//         }
-//     })
-// })
+// };
 
 const registerUser = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body
-    const token = req.headers.authorization.split(' ')[1]; 
+    const token = req.headers.authorization.split(' ')[1];
     if (!token) {
         res.status(400).json({
             code: "400",
@@ -497,7 +543,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const resetPassword = asyncHandler(async (req, res) => {
     const { newPassword } = req.body;
-    const token = req.headers.authorization.split(' ')[1]; 
+    const token = req.headers.authorization.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await User.findById(decoded.id);
@@ -555,8 +601,8 @@ const forgotPassword = asyncHandler(async (req, res) => {
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-            user: process.env.EMAIL, 
-            pass: process.env.EMAIL_PASSWORD 
+            user: process.env.EMAIL,
+            pass: process.env.EMAIL_PASSWORD
         }
     });
 
@@ -646,13 +692,73 @@ const resetPasswordWithOtp = asyncHandler(async (req, res) => {
     });
 });
 
+// const addToCart = asyncHandler(async (req, res) => {
+//     const { productId, quantity } = req.body;
+//     const user = await User.findById(req.user._id);
+//     const product = await Product.findById(productId);
+
+//     const item = {
+//         product: productId,
+//         quantity,
+//         price: product.price
+//     };
+
+//     user.cart.push(item);
+//     await user.save();
+
+//     res.status(200).json({
+//         code: "200",
+//         status: "Success",
+//         success: true,
+//         message: 'Item successfully added to cart',
+//         data: {
+//             cart: user.cart
+//         }
+//     });
+// });
+
+const getCart = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id).populate('cart.product');
+    if (user) {
+        res.json({
+            code: "200",
+            status: "Success",
+            success: true,
+            message: 'Cart retrieved successfully',
+            data: {
+                cart: user.cart
+            }
+        });
+    } else {
+        res.status(404);
+        throw new Error('User not found');
+    }
+});
+
 const addToCart = asyncHandler(async (req, res) => {
-    const { productId, quantity } = req.body;
+    const { productId, variant, quantity } = req.body;
     const user = await User.findById(req.user._id);
     const product = await Product.findById(productId);
 
+    // Cari variant yang diminta
+    const productVariant = product.variants.find(v =>
+        v.color === variant.color && v.size === variant.size
+    );
+
+    // Jika variant tidak ditemukan atau stok tidak cukup, kirim error
+    if (!productVariant || productVariant.quantity < quantity) {
+        res.status(400).json({
+            code: "400",
+            status: "Error",
+            success: false,
+            message: 'Variant not found or not enough stock',
+        });
+        return;
+    }
+
     const item = {
         product: productId,
+        variant,
         quantity,
         price: product.price
     };
@@ -688,6 +794,30 @@ const removeFromCart = asyncHandler(async (req, res) => {
         }
     });
 });
+
+const getWishlist = async (req, res) => {
+    const user = await User.findById(req.user._id).populate('wishlist');
+
+    if (user) {
+        res.status(200).json({
+            code: "200",
+            status: "OK",
+            success: true,
+            message: 'Wishlist retrieved successfully',
+            data: {
+                wishlist: user.wishlist
+            }
+        });
+    } else {
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: 'User not found',
+            data: {}
+        });
+    }
+};
 
 const addToWishlist = asyncHandler(async (req, res) => {
     const { productId } = req.body;
@@ -754,4 +884,4 @@ const checkEmailUser = asyncHandler(async (req, res) => {
 });
 
 
-module.exports = { sendOtp, verifyOtp, authUser, getUserProfile, registerUser, updateUserProfile, resetPassword, forgotPassword, resetPasswordWithOtp, addToCart, removeFromCart, addToWishlist, removeFromWishlist, checkEmailUser }
+module.exports = { sendOtp, verifyOtp, authUser, getUserProfile, registerUser, updateUserProfile, resetPassword, forgotPassword, resetPasswordWithOtp, getCart, addToCart, removeFromCart, getWishlist, addToWishlist, removeFromWishlist, checkEmailUser }

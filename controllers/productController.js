@@ -1,34 +1,77 @@
-const Product = require('../models/Product');
+const { Product } = require('../models/productModel');
 
 const getProducts = async (req, res) => {
-    const { search, category } = req.query;
+    const { search } = req.query;
 
     let query = {};
 
     if (search) {
-        query.name = { $regex: search, $options: 'i' }; // case insensitive search in product name
-    }
-
-    if (category) {
-        query.category = category;
+        query.name = { $regex: search, $options: 'i' };
     }
 
     const products = await Product.find(query).sort('category');
-    res.json(products);
+    res.status(200).json({
+        code: 200,
+        status: 'success',
+        results: products.length,
+        data: {
+            products
+        }
+    });
 };
 
 const getAllProducts = async (req, res) => {
-    const products = await Product.find({}).sort('category');
-    res.json(products);
+    try {
+        const products = await Product.find({}).sort('category');
+        res.status(200).json({
+            code: 200,
+            status: 'success',
+            results: products.length,
+            data: {
+                products
+            }
+        })
+    } catch (err) {
+        res.status(500).json({
+            code: 500,
+            status: 'error',
+            message: err.message
+        });
+    }
 };
 
 const getProductById = async (req, res) => {
     const product = await Product.findById(req.params.id);
     if (product) {
-        res.json(product);
+        res.status(200).json({
+            code: 200,
+            status: 'success',
+            data: {
+                product
+            }
+        });
     } else {
-        res.status(404).json({ message: 'Product not found' });
+        res.status(404).json({
+            code: 404,
+            status: 'error',
+            message: 'Product not found'
+         });
     }
+};
+
+const getProductCategory = async (req, res) => {
+    const { category, size } = req.query;
+
+    let query = {};
+    if (category) {
+        query.category = category;
+    }
+    if (size) {
+        query.variants = { $elemMatch: { size: size } };
+    }
+
+    const products = await Product.find(query);
+    res.json(products);
 };
 
 const createProduct = async (req, res) => {
@@ -82,6 +125,7 @@ module.exports = {
     getProducts,
     getAllProducts,
     getProductById,
+    getProductCategory,
     createProduct,
     updateProduct,
     deleteProduct

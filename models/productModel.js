@@ -19,9 +19,9 @@ const productSchema = mongoose.Schema({
         required: true
     },
     price: {
-        type: Number,
+        type: String,
         required: true,
-        default: 0
+        default: '0'
     },
     images: {
         main: String,
@@ -41,4 +41,4 @@ const productSchema = mongoose.Schema({
 
 const Product = mongoose.model('Product', productSchema)
 
-module.exports = Product
+module.exports = { Product, variantSchema }
