@@ -27,11 +27,8 @@ const cartItemSchema = mongoose.Schema({
     },
     variant: variantSchema,
     quantity: Number,
-    price: String // Ubah ini menjadi String
-}, {
-    _id: false
+    price: String 
 });
-
 
 const userSchema = mongoose.Schema({
     name: {

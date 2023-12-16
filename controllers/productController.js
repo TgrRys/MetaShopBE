@@ -1,7 +1,7 @@
 const { Product } = require('../models/productModel');
 
 const getProducts = async (req, res) => {
-    const { search } = req.query;
+    const { search, sort } = req.query;
 
     let query = {};
 
@@ -9,7 +9,24 @@ const getProducts = async (req, res) => {
         query.name = { $regex: search, $options: 'i' };
     }
 
-    const products = await Product.find(query).sort('category');
+    let products = await Product.find(query);
+
+    if (sort) {
+        switch (sort) {
+            case 'newest':
+                products.sort((a, b) => b.createdAt - a.createdAt);
+                break;
+            case 'lowest':
+                products.sort((a, b) => Number(a.price) - Number(b.price));
+                break;
+            case 'highest':
+                products.sort((a, b) => Number(b.price) - Number(a.price));
+                break;
+            default:
+                break;
+        }
+    }
+
     res.status(200).json({
         code: 200,
         status: 'success',
@@ -55,23 +72,27 @@ const getProductById = async (req, res) => {
             code: 404,
             status: 'error',
             message: 'Product not found'
-         });
+        });
     }
 };
 
 const getProductCategory = async (req, res) => {
-    const { category, size } = req.query;
+    const { category } = req.query;
 
     let query = {};
     if (category) {
         query.category = category;
     }
-    if (size) {
-        query.variants = { $elemMatch: { size: size } };
-    }
 
     const products = await Product.find(query);
-    res.json(products);
+    res.status(200).json({
+        code: 200,
+        status: 'success',
+        results: products.length,
+        data: {
+            products
+        }
+    });
 };
 
 const createProduct = async (req, res) => {

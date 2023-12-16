@@ -736,7 +736,7 @@ const getCart = asyncHandler(async (req, res) => {
 });
 
 const addToCart = asyncHandler(async (req, res) => {
-    const { productId, variant, quantity } = req.body;
+    const { productId, variant } = req.body;
     const user = await User.findById(req.user._id);
     const product = await Product.findById(productId);
 
@@ -746,7 +746,7 @@ const addToCart = asyncHandler(async (req, res) => {
     );
 
     // Jika variant tidak ditemukan atau stok tidak cukup, kirim error
-    if (!productVariant || productVariant.quantity < quantity) {
+    if (!productVariant || productVariant.quantity < 1) {
         res.status(400).json({
             code: "400",
             status: "Error",
@@ -756,14 +756,28 @@ const addToCart = asyncHandler(async (req, res) => {
         return;
     }
 
-    const item = {
-        product: productId,
-        variant,
-        quantity,
-        price: product.price
-    };
+    // Cari item dalam keranjang
+    const item = user.cart.find(i =>
+        i.product.toString() === productId &&
+        i.variant.color === variant.color &&
+        i.variant.size === variant.size
+    );
 
-    user.cart.push(item);
+    if (item) {
+        // Jika item ditemukan, tambahkan quantity
+        item.quantity += 1;
+    } else {
+        // Jika item tidak ditemukan, buat item baru
+        const newItem = {
+            product: productId,
+            variant,
+            quantity: 1, // Set quantity to 1
+            price: product.price
+        };
+
+        user.cart.push(newItem);
+    }
+
     await user.save();
 
     res.status(200).json({
@@ -777,22 +791,142 @@ const addToCart = asyncHandler(async (req, res) => {
     });
 });
 
-const removeFromCart = asyncHandler(async (req, res) => {
-    const productId = req.params.productId;
+// const editToCart = asyncHandler(async (req, res) => {
+//     const { productId, variant, quantity } = req.body;
+//     const user = await User.findById(req.user._id);
+//     const product = await Product.findById(productId);
+
+//     // Cari variant yang diminta
+//     const productVariant = product.variants.find(v =>
+//         v.color === variant.color && v.size === variant.size
+//     );
+
+//     // Jika variant tidak ditemukan atau stok tidak cukup, kirim error
+//     if (!productVariant || productVariant.quantity < quantity) {
+//         res.status(400).json({
+//             code: "400",
+//             status: "Error",
+//             success: false,
+//             message: 'Variant not found or not enough stock',
+//         });
+//         return;
+//     }
+
+//     // Cari item dalam keranjang
+//     const item = user.cart.find(i =>
+//         i.product.toString() === productId &&
+//         i.variant.color === variant.color &&
+//         i.variant.size === variant.size
+//     );
+
+//     if (item) {
+//         // Jika item ditemukan, update quantity
+//         item.quantity = quantity;
+//     } else {
+//         // Jika item tidak ditemukan, kirim error
+//         res.status(404).json({
+//             code: "404",
+//             status: "Error",
+//             success: false,
+//             message: 'Item not found in cart',
+//         });
+//         return;
+//     }
+
+//     await user.save();
+
+//     res.status(200).json({
+//         code: "200",
+//         status: "Success",
+//         success: true,
+//         message: 'Item quantity updated successfully',
+//         data: {
+//             cart: user.cart
+//         }
+//     });
+// });
+
+// const removeFromCart = asyncHandler(async (req, res) => {
+//     const productId = req.params.productId;
+//     const user = await User.findById(req.user._id);
+
+//     user.cart = user.cart.filter(item => item.product.toString() !== productId);
+//     await user.save();
+
+//     res.status(200).json({
+//         code: "200",
+//         status: "Success",
+//         success: true,
+//         message: 'Item successfully removed from cart',
+//         data: {
+//             cart: user.cart
+//         }
+//     });
+// });
+
+const editToCart = asyncHandler(async (req, res) => {
+    const { itemId, quantity } = req.body;
     const user = await User.findById(req.user._id);
 
-    user.cart = user.cart.filter(item => item.product.toString() !== productId);
+    // Cari item dalam keranjang
+    const item = user.cart.id(itemId);
+
+    if (item) {
+        // Jika item ditemukan, update quantity
+        item.quantity = quantity;
+    } else {
+        // Jika item tidak ditemukan, kirim error
+        res.status(404).json({
+            code: "404",
+            status: "Error",
+            success: false,
+            message: 'Item not found in cart',
+        });
+        return;
+    }
+
     await user.save();
 
     res.status(200).json({
         code: "200",
         status: "Success",
         success: true,
-        message: 'Item successfully removed from cart',
+        message: 'Item quantity updated successfully',
         data: {
             cart: user.cart
         }
     });
+});
+
+const removeFromCart = asyncHandler(async (req, res) => {
+    const itemId = req.params.itemId;
+    const user = await User.findById(req.user._id);
+
+    // Cari item dalam keranjang dan hapus
+    const item = user.cart.id(itemId);
+
+    if (item) {
+        item.remove();
+        await user.save();
+
+        res.status(200).json({
+            code: "200",
+            status: "Success",
+            success: true,
+            message: 'Item successfully removed from cart',
+            data: {
+                cart: user.cart
+            }
+        });
+    } else {
+        // Jika item tidak ditemukan, kirim error
+        res.status(404).json({
+            code: "404",
+            status: "Error",
+            success: false,
+            message: 'Item not found in cart',
+        });
+    }
 });
 
 const getWishlist = async (req, res) => {
@@ -884,4 +1018,4 @@ const checkEmailUser = asyncHandler(async (req, res) => {
 });
 
 
-module.exports = { sendOtp, verifyOtp, authUser, getUserProfile, registerUser, updateUserProfile, resetPassword, forgotPassword, resetPasswordWithOtp, getCart, addToCart, removeFromCart, getWishlist, addToWishlist, removeFromWishlist, checkEmailUser }
+module.exports = { sendOtp, verifyOtp, authUser, getUserProfile, registerUser, updateUserProfile, resetPassword, forgotPassword, resetPasswordWithOtp, getCart, addToCart, editToCart, removeFromCart, getWishlist, addToWishlist, removeFromWishlist, checkEmailUser }
