@@ -6,32 +6,121 @@ const User = require('../models/userModel');
 const axios = require('axios');
 
 
+// const createPayment = async (req, res) => {
+//     try {
+//         const { user: userId, order, coupon, paymentMethod } = req.body;
+
+//         const user = await User.findById(userId);
+//         if (!user) {
+//             return res.status(404).json({
+//                 code: "404",
+//                 status: "Not Found",
+//                 success: false,
+//                 message: "User not found",
+//                 data: {}
+//             });
+//         }
+
+//         const fetchedOrder = await Order.findById(order).populate('orderItems.product');
+//         if (!fetchedOrder) {
+//             return res.status(404).json({
+//                 code: "404",
+//                 status: "Not Found",
+//                 success: false,
+//                 message: "Order not found",
+//                 data: {}
+//             });
+//         }
+
+//         let totalAmount = fetchedOrder.orderItems.reduce((acc, item) => acc + item.qty * item.product.price, 0);
+
+//         let discount = 0;
+//         if (coupon) {
+//             const fetchedCoupon = await Coupon.findById(coupon);
+//             discount = fetchedCoupon ? fetchedCoupon.discount : 0;
+//         }
+//         const finalAmount = totalAmount - discount;
+
+//         const snap = new midtransClient.Snap({
+//             isProduction: false,
+//             serverKey: process.env.MIDTRANS_SERVER_KEY,
+//             clientKey: process.env.MIDTRANS_CLIENT_KEY,
+//         });
+
+//         const parameter = {
+//             transaction_details: {
+//                 order_id: order,
+//                 gross_amount: finalAmount,
+//             },
+//             item_details: fetchedOrder.orderItems.map(item => ({
+//                 id: item.product._id,
+//                 price: Math.floor(item.product.price), // Ensure the price is an integer
+//                 quantity: item.qty,
+//                 name: item.product.name.substring(0, 49), // Ensure the name is not too long
+//             })),
+//             customer_details: {
+//                 email: user.email,
+//                 shipping_address: fetchedOrder.shippingAddress,
+//             },
+//         };
+
+//         snap.createTransaction(parameter).then((transaction) => {
+//             const dataPayment = {
+//                 response: JSON.stringify(transaction)
+//             }
+
+//             const token = transaction.token;
+//             const payment = new Payment({
+//                 user,
+//                 order,
+//                 coupon,
+//                 totalAmount: finalAmount,
+//                 paymentMethod,
+//                 token
+//             });
+
+//             const createdPayment = payment.save();
+
+//             res.status(200).json({
+//                 code: "200",
+//                 status: "OK",
+//                 success: true,
+//                 message: "Payment created successfully",
+//                 data: {
+//                     dataPayment: dataPayment,
+//                     token: token,
+//                     payment: createdPayment,
+//                     order: order
+//                 }
+//             });
+//         });
+//     } catch (error) {
+//         res.status(500).json({
+//             code: "500",
+//             status: "Internal Server Error",
+//             success: false,
+//             message: error.message,
+//             data: {}
+//         });
+//     }
+// };
+
 const createPayment = async (req, res) => {
     try {
+        const { orderId } = req.body;
 
-        const { user: userId, order, coupon, paymentMethod } = req.body;
-
-        const user = await User.findById(userId);
-        if (!user) {
+        const order = await Order.findById(orderId).populate('user').populate('orderItems.product');
+        if (!order) {
             return res.status(404).json({
-                code : "404",
-                status : "Not Found",
-                success : false,
-                message : "User not found",
-                data : {}
-             });
+                code: "404",
+                status: "Not Found",
+                success: false,
+                message: "Order not found",
+                data: {}
+            });
         }
 
-        const fetchedOrder = await Order.findById(order).populate('orderItems.product');
-
-        let totalAmount = 0;
-        fetchedOrder.orderItems.forEach(item => {
-            totalAmount += item.qty * item.product.price;
-        });
-
-        const fetchedCoupon = await Coupon.findById(coupon);
-        const discount = fetchedCoupon ? fetchedCoupon.discount : 0;
-        const finalAmount = totalAmount - discount;
+        let totalAmount = order.orderItems.reduce((acc, item) => acc + item.quantity * parseFloat(item.product.price.replace(".", "")), 0);
 
         const snap = new midtransClient.Snap({
             isProduction: false,
@@ -41,43 +130,39 @@ const createPayment = async (req, res) => {
 
         const parameter = {
             transaction_details: {
-                order_id: order,
-                gross_amount: finalAmount,
+                order_id: orderId,
+                gross_amount: totalAmount,
             },
-            item_details: fetchedOrder.orderItems.map(item => ({
+            item_details: order.orderItems.map(item => ({
                 id: item.product._id,
-                price: item.product.price,
-                quantity: item.qty,
-                name: item.product.name,
-                brand: item.product.brand
+                price: parseFloat(item.product.price.replace(".", "")),
+                quantity: item.quantity,
+                name: item.product.name.substring(0, 49),
             })),
             customer_details: {
-                email: user.email,
-                shipping_address: {
-                    address: user.addresses[0].street,
-                    city: user.addresses[0].city,
-                    postal_code: user.addresses[0].postalCode
-                },
+                email: order.user.email,
+                shipping_address: order.shippingAddress || order.user.shippingAddress,
             },
         };
 
+        console.log('order.user:', order.user);
+        console.log('parameter:', parameter);
         snap.createTransaction(parameter).then((transaction) => {
             const dataPayment = {
                 response: JSON.stringify(transaction)
             }
-        
+
             const token = transaction.token;
             const payment = new Payment({
-                user,
+                user: order.user,
                 order,
-                coupon,
-                totalAmount: finalAmount,
-                paymentMethod,
-                token
+                totalAmount,
+                token,
+                paymentMethod: order.paymentMethod 
             });
-        
+
             const createdPayment = payment.save();
-        
+
             res.status(200).json({
                 code: "200",
                 status: "OK",
@@ -91,36 +176,14 @@ const createPayment = async (req, res) => {
                 }
             });
         });
-        // snap.createTransaction(parameter).then((transaction) => {
-        //     const dataPayment = {
-        //         response: JSON.stringify(transaction)
-        //     }
-
-        //     const token = transaction.token;
-        //     const payment = new Payment({
-        //         user,
-        //         order,
-        //         coupon,
-        //         totalAmount: finalAmount,
-        //         paymentMethod,
-        //         token
-        //     });
-
-        //     const createdPayment = payment.save();
-
-        //     res.status(200).json({
-        //         message: "success", dataPayment, token: token, payment: createdPayment, order: order
-
-        //     });
-        // });
     } catch (error) {
         res.status(500).json({
-            code : "500",
-            status : "Internal Server Error",
-            success : false,
-            message : error.message,
-            data : {}
-         });
+            code: "500",
+            status: "Internal Server Error",
+            success: false,
+            message: error.message,
+            data: {}
+        });
     }
 };
 
@@ -136,23 +199,23 @@ const getPaymentStatus = async (req, res) => {
         const order = await Order.findById(orderId);
         if (!order) {
             return res.status(404).json({
-                code : "404",
-                status : "Not Found",
-                success : false,
-                message : "Order not found",
-                data : {}
-             });
+                code: "404",
+                status: "Not Found",
+                success: false,
+                message: "Order not found",
+                data: {}
+            });
         }
 
         const payment = await Payment.findOne({ order: orderId });
         if (!payment) {
-            return res.status(404).json({ 
-                code : "404",
-                status : "Not Found",
-                success : false,
-                message : "Payment not found",
-                data : {}
-             });
+            return res.status(404).json({
+                code: "404",
+                status: "Not Found",
+                success: false,
+                message: "Payment not found",
+                data: {}
+            });
         }
 
         const response = await axios.get(`https://api.sandbox.midtrans.com/v2/${orderId}/status`, {
@@ -170,20 +233,20 @@ const getPaymentStatus = async (req, res) => {
         }
 
         res.status(200).json({
-            code : "200",
-            status : "OK",
-            success : true,
-            message : "Payment status fetched successfully",
-            data : paymentStatus
-         });
+            code: "200",
+            status: "OK",
+            success: true,
+            message: "Payment status fetched successfully",
+            data: paymentStatus
+        });
     } catch (error) {
         res.status(500).json({
-            code : "500",
-            status : "Internal Server Error",
-            success : false,
-            message : error.message,
-            data : {}
-         });
+            code: "500",
+            status: "Internal Server Error",
+            success: false,
+            message: error.message,
+            data: {}
+        });
     }
 };
 
@@ -194,12 +257,12 @@ const getPaymentById = async (req, res) => {
         res.json(payment);
     } else {
         res.status(404).json({
-            code : "404",
-            status : "Not Found",
-            success : false,
-            message : "Payment not found",
-            data : {}
-         });
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: "Payment not found",
+            data: {}
+        });
     }
 };
 

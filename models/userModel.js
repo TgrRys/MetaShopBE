@@ -23,11 +23,21 @@ const wishlistItemSchema = mongoose.Schema({
 const cartItemSchema = mongoose.Schema({
     product: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product'
+        ref: 'Product',
+        required: true
     },
-    variant: variantSchema,
-    quantity: Number,
-    price: String 
+    variant: {
+        color: String,
+        size: String
+    },
+    quantity: {
+        type: Number,
+        required: true
+    },
+    price: {
+        type: String,
+        required: true
+    }
 });
 
 const userSchema = mongoose.Schema({

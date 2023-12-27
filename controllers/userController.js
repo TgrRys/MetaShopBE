@@ -898,15 +898,45 @@ const editToCart = asyncHandler(async (req, res) => {
     });
 });
 
+// const removeFromCart = asyncHandler(async (req, res) => {
+//     const itemId = req.params.itemId;
+//     const user = await User.findById(req.user._id);
+
+//     // Cari item dalam keranjang dan hapus
+//     const item = user.cart.id(itemId);
+
+//     if (item) {
+//         item.remove();
+//         await user.save();
+
+//         res.status(200).json({
+//             code: "200",
+//             status: "Success",
+//             success: true,
+//             message: 'Item successfully removed from cart',
+//             data: {
+//                 cart: user.cart
+//             }
+//         });
+//     } else {
+//         // Jika item tidak ditemukan, kirim error
+//         res.status(404).json({
+//             code: "404",
+//             status: "Error",
+//             success: false,
+//             message: 'Item not found in cart',
+//         });
+//     }
+// });
+
 const removeFromCart = asyncHandler(async (req, res) => {
-    const itemId = req.params.itemId;
+    const cartItemId = req.params.cartItemId;
     const user = await User.findById(req.user._id);
 
-    // Cari item dalam keranjang dan hapus
-    const item = user.cart.id(itemId);
+    const cartItem = user.cart.id(cartItemId);
 
-    if (item) {
-        item.remove();
+    if (cartItem) {
+        cartItem.remove();
         await user.save();
 
         res.status(200).json({
@@ -999,20 +1029,18 @@ const checkEmailUser = asyncHandler(async (req, res) => {
     const user = await User.findOne({ email: email });
 
     if (user) {
-        res.status(400).json({
-            code: "400",
-            status: "Bad Request",
-            success: false,
-            message: 'This email is already registered, please use other email address',
-            data: {}
-        });
-    } else {
         res.status(200).json({
             code: "200",
             status: "OK",
             success: true,
-            message: 'This email is available to use for registration',
-            data: {}
+            message: 'This email is already registered, please login',
+        });
+    } else {
+        res.status(400).json({
+            code: "400",
+            status: "Bad Request",
+            success: false,
+            message: 'This email is not registered yet please register',
         });
     }
 });
