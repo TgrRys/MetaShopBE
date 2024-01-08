@@ -120,6 +120,16 @@ const createPayment = async (req, res) => {
             });
         }
 
+        if (!order.shippingAddress && !order.user.shippingAddress) {
+            return res.status(400).json({
+                code: "400",
+                status: "Bad Request",
+                success: false,
+                message: "Shipping address not found",
+                data: {}
+            });
+        }
+
         let totalAmount = order.orderItems.reduce((acc, item) => acc + item.quantity * parseFloat(item.product.price.replace(".", "")), 0);
 
         const snap = new midtransClient.Snap({
@@ -145,9 +155,7 @@ const createPayment = async (req, res) => {
             },
         };
 
-        console.log('order.user:', order.user);
-        console.log('parameter:', parameter);
-        snap.createTransaction(parameter).then((transaction) => {
+        snap.createTransaction(parameter).then(async (transaction) => {
             const dataPayment = {
                 response: JSON.stringify(transaction)
             }
@@ -158,10 +166,14 @@ const createPayment = async (req, res) => {
                 order,
                 totalAmount,
                 token,
-                paymentMethod: order.paymentMethod 
+                paymentMethod: order.paymentMethod,
+                redirectUrl: transaction.redirect_url,
             });
 
-            const createdPayment = payment.save();
+            const createdPayment = await payment.save();
+
+            order.isPaid = true;
+            await order.save();
 
             res.status(200).json({
                 code: "200",
@@ -187,6 +199,69 @@ const createPayment = async (req, res) => {
     }
 };
 
+// const getPaymentStatus = async (req, res) => {
+//     try {
+//         const token = req.headers.authorization;
+//         if (!token) {
+//             return res.status(401).json({ message: "No authentication token, authorization denied" });
+//         }
+
+//         const { orderId } = req.params;
+
+//         const order = await Order.findById(orderId);
+//         if (!order) {
+//             return res.status(404).json({
+//                 code: "404",
+//                 status: "Not Found",
+//                 success: false,
+//                 message: "Order not found",
+//                 data: {}
+//             });
+//         }
+
+//         const payment = await Payment.findOne({ order: orderId });
+//         if (!payment) {
+//             return res.status(404).json({
+//                 code: "404",
+//                 status: "Not Found",
+//                 success: false,
+//                 message: "Payment not found",
+//                 data: {}
+//             });
+//         }
+
+//         const response = await axios.get(`https://api.sandbox.midtrans.com/v2/${orderId}/status`, {
+//             headers: {
+//                 'Accept': 'application/json',
+//                 'Authorization': 'Basic ' + Buffer.from(`${process.env.MIDTRANS_SERVER_KEY}:`).toString('base64')
+//             }
+//         });
+
+//         const paymentStatus = response.data;
+
+//         if (paymentStatus.status_code === "200") {
+//             payment.isPaid = true;
+//             await payment.save();
+//         }
+
+//         res.status(200).json({
+//             code: "200",
+//             status: "OK",
+//             success: true,
+//             message: "Payment status fetched successfully",
+//             data: paymentStatus
+//         });
+//     } catch (error) {
+//         res.status(500).json({
+//             code: "500",
+//             status: "Internal Server Error",
+//             success: false,
+//             message: error.message,
+//             data: {}
+//         });
+//     }
+// };
+
 const getPaymentStatus = async (req, res) => {
     try {
         const token = req.headers.authorization;
@@ -194,50 +269,50 @@ const getPaymentStatus = async (req, res) => {
             return res.status(401).json({ message: "No authentication token, authorization denied" });
         }
 
-        const { orderId } = req.params;
+        const { userId } = req.params;
 
-        const order = await Order.findById(orderId);
-        if (!order) {
+        const orders = await Order.find({ user: userId });
+        if (!orders) {
             return res.status(404).json({
                 code: "404",
                 status: "Not Found",
                 success: false,
-                message: "Order not found",
+                message: "Orders not found",
                 data: {}
             });
         }
 
-        const payment = await Payment.findOne({ order: orderId });
-        if (!payment) {
-            return res.status(404).json({
-                code: "404",
-                status: "Not Found",
-                success: false,
-                message: "Payment not found",
-                data: {}
-            });
-        }
+        const paymentStatuses = [];
 
-        const response = await axios.get(`https://api.sandbox.midtrans.com/v2/${orderId}/status`, {
-            headers: {
-                'Accept': 'application/json',
-                'Authorization': 'Basic ' + Buffer.from(`${process.env.MIDTRANS_SERVER_KEY}:`).toString('base64')
+        for (let order of orders) {
+            const payment = await Payment.findOne({ order: order._id });
+            if (!payment) {
+                continue;
             }
-        });
 
-        const paymentStatus = response.data;
+            const response = await axios.get(`https://api.sandbox.midtrans.com/v2/${order._id}/status`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': 'Basic ' + Buffer.from(`${process.env.MIDTRANS_SERVER_KEY}:`).toString('base64')
+                }
+            });
 
-        if (paymentStatus.status_code === "200") {
-            payment.isPaid = true;
-            await payment.save();
+            const paymentStatus = response.data;
+
+            if (paymentStatus.status_code === "200" || paymentStatus.status_code === "201") {
+                payment.isPaid = true;
+                await payment.save();
+            }
+
+            paymentStatuses.push(paymentStatus);
         }
 
         res.status(200).json({
             code: "200",
             status: "OK",
             success: true,
-            message: "Payment status fetched successfully",
-            data: paymentStatus
+            message: "Payment statuses fetched successfully",
+            data: paymentStatuses
         });
     } catch (error) {
         res.status(500).json({
@@ -269,7 +344,23 @@ const getPaymentById = async (req, res) => {
 const getPaymentsByUser = async (req, res) => {
     const payments = await Payment.find({ user: req.params.userId }).populate('user').populate('order').populate('coupon');
 
-    res.json(payments);
+    if (payments.length > 0) {
+        res.status(200).json({
+            code: "200",
+            status: "OK",
+            success: true,
+            message: "Payments fetched successfully",
+            data: payments
+        });
+    } else {
+        res.status(404).json({
+            code: "404",
+            status: "Not Found",
+            success: false,
+            message: "Payments not found",
+            data: {}
+        });
+    }
 };
 
 module.exports = {

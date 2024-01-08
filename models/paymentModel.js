@@ -31,6 +31,9 @@ const paymentSchema = mongoose.Schema({
     paidAt: {
         type: Date,
     },
+    redirectUrl: {
+        type: String,
+    },
 }, {
     timestamps: true,
 });

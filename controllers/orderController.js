@@ -17,12 +17,12 @@ const createOrder = expressAsyncHandler(async (req, res) => {
                     price: item.price
                 };
             }),
-            paymentMethod: 'credit_card', 
+            paymentMethod: 'credit_card'
         });
         await order.save();
 
         const user = await User.findById(req.user._id);
-        user.cart = user.cart.filter(item => !orderItems.find(orderItem => orderItem.product === item.product));
+        user.cart = user.cart.filter(item => !orderItems.find(orderItem => orderItem.product.toString() === item.product.toString()));
         await user.save();
 
         res.status(201).json({ status: 'success', order: order });
@@ -30,7 +30,6 @@ const createOrder = expressAsyncHandler(async (req, res) => {
         console.error(error);
         res.status(500).json({ status: 'error', message: error.message });
     }
-    
 });
 
 const updateOrder = expressAsyncHandler(async (req, res) => {
@@ -41,7 +40,7 @@ const updateOrder = expressAsyncHandler(async (req, res) => {
         const user = await User.findById(order.user);
         if (user) {
             if (typeof shippingAddress === 'number' && shippingAddress >= 0 && shippingAddress < user.addresses.length) {
-                order.shippingAddress = user.addresses[shippingAddress]; 
+                order.shippingAddress = user.addresses[shippingAddress];
                 const updatedOrder = await order.save();
 
                 if (orderedItems) {
@@ -79,15 +78,30 @@ const getOrderById = expressAsyncHandler(async (req, res) => {
 });
 
 const getOrdersByUser = expressAsyncHandler(async (req, res) => {
-    const orders = await Order.find({ user: req.params.userId }).populate('user').populate('orderItems.product');
+    const orders = await Order.find({ user: req.params.userId })
+        .populate('user')
+        .populate('orderItems.product')
+        .sort('-createdAt');
 
     res.json({ status: 'success', orders: orders });
 });
 
+const deleteOrder = expressAsyncHandler(async (req, res) => {
+    const order = await Order.findById(req.params.id);
+
+    if (order) {
+        await order.remove();
+        res.status(200).json({ status: 'success', message: 'Order removed' });
+    } else {
+        res.status(404).json({ status: 'error', message: 'Order not found' });
+    }
+});
 
 module.exports = {
     createOrder,
     getOrderById,
     getOrdersByUser,
-    updateOrder
+    updateOrder,
+    deleteOrder
 };
+

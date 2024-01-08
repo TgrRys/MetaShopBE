@@ -28,13 +28,19 @@ const orderSchema = mongoose.Schema({
   },
   orderItems: [orderItemSchema],
   shippingAddress: {
-    type: mongoose.Schema.Types.Mixed, 
-    required: false 
+    type: mongoose.Schema.Types.Mixed,
+    required: false
   },
   paymentMethod: {
     type: String,
     required: true,
   },
+  isPaid: {
+    type: Boolean,
+    default: false,
+  },
+}, {
+  timestamps: true,
 });
 
 const Order = mongoose.model('Order', orderSchema);

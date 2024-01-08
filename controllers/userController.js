@@ -949,7 +949,6 @@ const removeFromCart = asyncHandler(async (req, res) => {
             }
         });
     } else {
-        // Jika item tidak ditemukan, kirim error
         res.status(404).json({
             code: "404",
             status: "Error",

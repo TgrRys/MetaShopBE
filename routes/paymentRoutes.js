@@ -4,9 +4,9 @@ const { protect } = require('../middleware/authMiddleWare.js')
 const { createPayment, getPaymentById, getPaymentsByUser, getPaymentStatus } = require('../controllers/paymentController.js');
 
 router.post('/process', protect, createPayment);
-router.get('/status/:orderId', protect, getPaymentStatus);
+router.get('/status/user/:userId', protect, getPaymentStatus);
 router.get('/detail/:id', protect, getPaymentById);
-router.get('/user/payments/:userId', protect, getPaymentsByUser);
+router.get('/history/:userId', protect, getPaymentsByUser);
 
 
 module.exports = router
